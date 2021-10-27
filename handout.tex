@@ -1,0 +1,344 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage[shortlabels]{enumitem}
+\usepackage{parskip}
+\usepackage{fullpage}
+
+
+\title{CSCI1410 Fall 2021 \\
+Assignment 4: Hidden Markov Models}
+
+\date{%
+Code Submission 1 Due Tuesday, October 19 at 11:59pm ET\\ [1ex]
+Code Submission 2 Due Thursday, October 21 at 11:59pm ET\\ [1ex]
+Code Due Wednesday, October 27 at 11:59pm ET\\ [1ex]
+Writeup Due Thursday, October 28 at 11:59pm ET\\ [1ex]
+Late Day Deadline Saturday, October 30 at 11:59pm ET
+}
+
+\author{}
+
+
+\begin{document}
+
+\maketitle
+
+\section*{Introduction}
+
+\subsection*{Silly Premise:}
+George just bought the new iOS Atari game pack! Problem is, he spilled some of his favorite beverage Dr. Pepper, soaking his entire desk along with all his papers and his smartphone. He wants to play the game, but his phone's touchscreen has started acting wonky. You will be helping George filter his touchscreen data using Hidden Markov Models (HMMs) so he can control the little Atari dude with his finger.
+
+\subsection*{Hidden Markov Models:}
+In this assignment, we will be taking a deeper look at HMMs to better understand their functionality and uses. In the first part, you will implement a generic HMM. In the second part you will use a HMM to filter noisy touchscreen data, and in the last part you will write about what you did in the second part.
+
+\section{Part 1: Generic HMM}
+In this part of the assignment, you will implement a basic HMM that supports filtering and prediction. Your HMM will take in a series of observations at sequential \textbf{timesteps} (i.e. discrete points in time: 0, 1, 2, ...), and compute a probability distribution over hidden states for the current timestep (filtering) and future timesteps (prediction).
+
+\subsection{Coding}
+You will write your code for this part in \texttt{hmm.py}, which contains the \texttt{HMM} class. The \texttt{HMM} class is instantiated with a function specifying the sensor model, a function specifying the transition model, and a preset number of hidden states.
+
+You will implement the following functions:
+\begin{enumerate}
+    \item \texttt{tell(observation):} \\
+    Takes in an \textbf{observation}, records it, and processes it in any way you find convenient. You will need to keep track of the current timestep and increment it each time your HMM is ``told'' a new observation (i.e. each time this function is called).
+
+    \item \texttt{ask(time):} \\
+    Takes in a timestep that is greater than or equal to the current timestep and outputs the probability distribution over \textbf{states} at that timestep, informed by the observations so far. The probabilities should be represented as a list in which the $i$th element is the probability of state $i$.
+
+    \texttt{ask(0)} \textbf{should return a uniform distribution}, and the first observation that the HMM is told occurs at time 1.
+
+    Here is an example of calling \texttt{ask} from a HMM with 3 hidden states:
+    \begin{verbatim}
+    [in:] ask(4)
+    [out:] [0.4, 0.2, 0.4]
+    \end{verbatim}
+    The way to interpret this is that at time 4 (i.e. after the fourth observation), the hidden state is 0 with probability 0.4, 1 with probability 0.2, and 2 with probability 0.4.
+
+\end{enumerate}
+
+\textbf{Do not modify the input and output specifications} of \texttt{ask} and \texttt{tell}.
+
+To be clear, because \texttt{tell} does not output anything, you will not be graded on what it does in isolation. You will be graded based only upon how \texttt{tell} and \texttt{ask} work together.
+
+\subsection{Representations}
+\begin{itemize}
+    \item States are represented as 0-indexed natural numbers $0, 1, \ldots, N - 1$, where $N$ is the number of hidden states in the HMM.
+    \item Observations are represented as upper-case letters \texttt{`A', `B', ..., `Z'}.
+    For simplicity of representation, you may assume that there are no more than 26 possible observations.
+    \item Timesteps are represented as 0-indexed natural numbers $0, 1, \ldots$.
+\end{itemize}
+
+\subsection{Assumptions}
+In all that follows, $S_t$ is the random variable that gives the hidden state at time $t$, and $o_t$ is the observation at time $t$.
+For this part of the assignment, you may make the following assumptions:
+\begin{enumerate}
+    \item The $t$th observation given to your HMM occurs at timestep $t$. In other words, observations are never skipped, and they are always told in order. You may assume this in Part 2 as well.
+
+    \item \textbf{Markov Assumption.} The future is independent of the past, given the present. \[\Pr(S_{t + 1} \mid S_t, S_{t - 1}, \ldots, S_1) = \Pr(S_{t + 1} \mid S_t)\]
+
+    \item The present observation is independent of past observations, given the present state.
+    \[\Pr(o_{t} \mid S_{t}, o_{t - 1}, o_{t - 2}, \ldots, o_1) = \Pr(o_{t} \mid S_{t})\]
+\end{enumerate}
+
+You can use assumptions 2 and 3 to obtain the following equation, the derivation of which you can find in section 15.2.1 of the textbook. Note that $\alpha$ is the normalization factor for the probability distribution.
+\begin{equation}
+    \Pr(S_{t + 1} \mid o_{1, 2, \dots, t + 1}) = \alpha \cdot \Pr(o_{t + 1} \mid S_{t + 1}) \sum_{s_t} \Pr(S_{t + 1} \mid S_t = s_t) \cdot \Pr(S_t = s_t \mid o_1, o_2, \ldots, o_t)
+\end{equation}
+
+You will find this equation \textit{extremely} helpful in completing at least Part 1 of this assignment. You should stare at it for a while to figure out what it means. If, after enough staring, you need help understanding the equation, you should come to TA hours. You should take a stab at understanding the equation's derivation as well; doing so may be helpful in Part 2.
+
+\subsection{Testing Part 1}
+\label{subsec:testingpart1}
+You can run \texttt{python unit\_tests.py} to test your program on a few basic IO tests. There are also tests for part 2 within this file, so don't worry about failing those for now. You should write your own additional test cases to make sure that your generic HMM is behaving as expected. You won't be graded on your tests, but testing is critical to evaluate the correctness of your code. To test your HMM, you will need a transition model and an observation model.\\
+For this reason, we give you some sample models in \texttt{hmm\_runner.py}. This file contains functions with sample data within them:
+\begin{enumerate}
+    \item \texttt{sensor\_model(observation, state):} \\
+    Returns the probability of \textbf{observation} being emitted when we are in \textbf{state}.
+    \item \texttt{transition\_model(old\_state, new\_state):} \\
+    Returns the probability of transitioning from \texttt{old\_state} to \texttt{new\_state}.
+\end{enumerate}
+To run your HMM, you can run the file by executing \texttt{python hmm\_runner.py} and entering in observations as you see fit. It will return the estimated distribution of the current time point. Note that you will have to begin your HMM implementation before it will return useful information.
+
+There are two implemented models for you to test on: \texttt{suppliedModel} and \texttt{simpleModel}. Each contain a relevant sensor and transition model. By default, the \texttt{suppliedModel} is used in \texttt{hmm\_runner.py} when you enter observations, but it can be easily changed to use \texttt{simpleModel} by running
+\[\texttt{python hmm\_runner.py --simple}.\]
+\texttt{simpleModel} only accepts the three observations `A', `B' and `C' and as a result is much easier to hand simulate. \texttt{simpleModel} is notable since the number of states and observations are explicit, and the number of states and observations are different.
+
+In order for you to quickly verify whether your solution is correct, we have also included a compiled binary that runs the TA soution called \texttt{ta\_hmm\_runner.bin}. Unfortunately, this compiled binary currently only works on the \textbf{department machines}. You can run this binary with the same flags as for \texttt{hmm\_runner.py} to make sure that your HMM and the solution return the same values (values within 0.001 of the TA solution are sufficient for the autograder). Here is an example that runs the TA solution on the \texttt{simpleModel} (make sure to activate the course virtual environment first!):
+\[\texttt{./ta\_hmm\_runner.bin --simple}\]
+
+
+\section{Part 2: Finger Tracking}
+\subsection{The Problem}
+Now you get to apply the skills you learned implementing the generic HMM to help George filter his noisy touchscreen data. You will do this by filling in the stencil code for \texttt{touchscrenHMM} class in \texttt{touchscreen.py}.
+
+Your goal is to write \texttt{filter\_noisy\_data}, which takes in the touchscreen’s noisy reading of the location of George’s finger and outputs a probability distribution over the true location of George’s finger, considering the current noisy readings as well as all past noisy readings. To compare this to Part 1, \texttt{filter\_noisy\_data} should behave exactly as if you were to call \texttt{tell()}, passing in the current noisy reading, and then \texttt{ask()}, passing in the current timestep. This is the function that will be directly evaluated by the grader to determine your score in Part 2.
+
+Note that you cannot use the compiled HMM TA solution in your handin, but you can use your implementation from part 1 if you would like.
+
+You should write \texttt{touchscreenHMM} by formulating this situation as a HMM. This means that you should come up with both a sensor model and a transition model that can be used in conjunction with one another to filter the noisy finger data. We have provided you with stencils for \texttt{sensor\_model} and \texttt{transition\_model} to get you started. Since we are not grading them, you may change them in any way you like.
+
+We will be calling the function \texttt{filter\_noisy\_data()} from an instance of your \texttt{touchscreenHMM}. When implemented, this function will take in a noisy frame (a NumPy array) and return the distribution of where the actual finger position is as another NumPy array. This is very similar to the \texttt{tell()} function you implemented in part 1, but in two dimensions. For example, \texttt{filter\_noisy\_data(frame)} could return:
+\[
+\begin{bmatrix}
+    0 & 0 & 0 & 0 \\
+    0 & 0 & .1 & .2 \\
+    0 & 0 & .1 & .5 \\
+    0 & 0 & 0 & .1
+\end{bmatrix}
+\]
+When \texttt{frame} is the 2D NumPy array:
+\[
+\begin{bmatrix}
+    0 & 0 & 0 & 0 \\
+    0 & 0 & 0 & 0 \\
+    0 & 0 & 0 & 1 \\
+    0 & 0 & 0 & 0
+\end{bmatrix}
+\]
+
+You need to get the noisy frame by calling \texttt{get\_frame()} on an instance of \texttt{touchscreenSimulator}. Every time \texttt{get\_frame()} is called, the subsequent frame is returned. By calling \texttt{get\_frame(actual\_position=True)}, you are able to also get the actual position of the finger for testing. It will return a tuple of (\texttt{noisy\_frame}, \texttt{actual\_frame}).
+
+This problem differs from a generic HMM because the finger moves in a way that depends on more than just the previous observation (the finger has directional velocity and some other interesting behaviors). Remember to take this into account in your solution! However, it is suggested to implement a regular HMM first before trying to take additional time points into account. Check out the "Hints and Observations" in section 2.4 for more on this.
+
+It can be a bit strange to think of a distribution as a 2D array, and can be difficult transitioning between them. NumPy luckily has a library that makes it easy to convert things into 2D arrays:\\
+\url{https://docs.scipy.org/doc/numpy-1.13.0/reference/generated/numpy.reshape.html}
+
+\subsection{Simulator}
+\begin{itemize}
+    \item \textbf{Simulator} \\
+    The simulator simulates both the movement of George’s finger and the noisy readings of the touchscreen. The simulator returns a sequence of frames it has created, often producing the true position of the finger, but erring occasionally. A frame is represented as a NumPy array. Note that the actual position can only move to an adjacent square, and is more likely to continue in the same direction than change direction.
+
+    For example, a simulation for a 4x4 board over 3 frames could look like this with the matrices representing NumPy arrays:
+    \[
+        \begin{bmatrix}
+            \begin{bmatrix}
+                0 & 0 & 0 & 0 \\
+                0 & 1 & 0 & 0 \\
+                0 & 0 & 0 & 0 \\
+                0 & 0 & 0 & 0
+            \end{bmatrix}, &
+            \begin{bmatrix}
+                0 & 0 & 0 & 0 \\
+                0 & 0 & 1 & 0 \\
+                0 & 0 & 0 & 0 \\
+                0 & 0 & 0 & 0
+            \end{bmatrix}, &
+            \begin{bmatrix}
+                0 & 0 & 0 & 0 \\
+                0 & 0 & 0 & 0 \\
+                0 & 0 & 1 & 0 \\
+                0 & 0 & 0 & 0
+            \end{bmatrix}
+        \end{bmatrix}
+    \]
+
+    For testing, the actual path of the finger is also provided. See the relevant source code section for more information on how to use the simulator.
+    \item \textbf{Simulator Visualizer}\\
+    A visualizer for the simulator for debugging and testing. Note that depending on the parameters the visualizer function is given, the visualizer will either display the actual position of the finger, the noisy data, or both simultaneously. See the relevant source code section for more information on how to use the visualizer.
+    \item \textbf{Simulation Testing Manager}\\
+    The simulation testing manager contains a few handy features to debug and test your solution. You'll be able to save simulations to test against the same data multiple times. The testing manager also builds upon the simulation visualizer to show your solution's probability distribution side-by-side with the simulation. See the next section (2.3) for more information on how to use the testing manager.
+\end{itemize}
+
+\subsection{Relevant Source Code}
+Please note that in order to keep the scenario ``realistic'' we have compiled the algorithm that adds noise and the simulator so you can't see the source code. Unfortunately this means that Part 2 will only run on department machines at the moment.
+\begin{itemize}
+    \item \texttt{simulator.so}
+    This file contains the finger simulator algorithm as a compiled module. It uses a \textit{top secret} algorithm to add noise to the actual position of the finger, so you will have to use the visualizer and/or analyze simulations to understand it better. It contains class \texttt{touchscreenSimulator}. You can make function calls to this file as if it were a \texttt{.py} file.
+
+    To create an instance of a touchscreen simulator, you can use:
+    \[\texttt{touchscreenSimulator(width=20, height=20, frames=100)}\]
+    Where \texttt{width} and \texttt{height} are the dimensions of the touchscreen, and \texttt{frames} is the number of frames in the simulation. The default is a $20 \times 20$ touchscreen over 100 frames, which is what all grading scripts will be run on.
+
+    After creating an instance of the simulator, make sure to call \texttt{sim.run\_simulation()} before anything else. This will generate the data (the noisy and actual frames) within the simulation instance. Since we are trying to simulate an online algorithm where you only get data frame by frame, you can get the next frame by calling \texttt{get\_frame()} on an instance of \texttt{touchscreenSimulator}. This will return a NumPy array representing a screen for the current timepoint. This function also auto increments time, so every time you call the function, the next timepoint will be returned.
+
+    You can use the visualizer on a simulation \texttt{sim} by calling
+    \[\texttt{sim.visualize\_simulation(noisy=True, actual=True, frame\_length=0.1)}\]
+    By changing the values of \texttt{noisy} and \texttt{actual}, you can plot the noisy data, actual position, or both. If you plot both, orange represents the actual position, yellow represents the noisy position, and purple represents when the two are in the same place. The actual screens are represented as 2D NumPy arrays filled with 0s besides the touch location which is represented as a 1. Tip: check out \texttt{numpy.nonzero()}.
+
+    \item \texttt{touchscreen\_runner.py}: This file contains the driver script that you will use for most of your testing and debugging. Although the script offers several flags for configuration, you can leave most fields as their default values, since these are the parameters you will be graded on. To get a quick summary of the flags that the touchscreen runner supports, run
+        \[\texttt{python touchscreen\_runner.py --help}\]
+        The important flags to know are:
+        \begin{itemize}[label=, leftmargin=8em, nosep]
+            \item[\texttt{--width}:] The width of the touchscreen (optional, defaults to 20)
+            \item[\texttt{--height}:] The height of the touchscreen (optional, defaults to 20)
+            \item[\texttt{--frames}:] The number of frames to simulate (optional, defaults to 100)
+            \item[\texttt{--visualize}:] Shows a visualization of touchscreen simulation. This can be useful if you want to run a ton of simulations just to observe their behavior. When used with \texttt{--evaluate}, also visualizes the probability distributions returned by your \texttt{touchscreenHMM} at each timestep.
+        \item[\texttt{--evaluate}:] Scores the student's HMM on the given simulation. See \hyperref[subsec:part2grading]{Section~\ref{subsec:part2grading}} for more info about these scores and how they will translate into your grade.
+        \end{itemize}
+
+        The \texttt{touchscreen\_runner.py} file also supports flags \texttt{--save\_file}, for saving simulations to a text file format, and \texttt{--load\_file}, for loading those saved simulations. The reproducibility offered by the ability to load saved simulations can be useful for testing and debugging.
+
+        The text files created by the touchscreen runner will be saved in this format (see \texttt{simple\_sim.txt}):
+        \begin{verbatim}
+                                20 20 100
+                                8 12 8 12
+                                18 6 9 11
+                                18 6 10 10
+                                ...
+        \end{verbatim}
+        The first line contains three integers, representing the \texttt{width}, \texttt{height}, and number of \texttt{frames} of the simulation. In the example above, the simulation is size $20 \times 20$ and is 100 frames in length. Each subsequent line (representing one frame) contains four integers: \texttt{noisy\_x}, \texttt{noisy\_y}, \texttt{actual\_x}, \texttt{actual\_y}. In the second line: \texttt{8 12 8 12} denotes a noisy location of $(8, 12)$ and an actual location of $(8, 12)$ for that timepoint.
+
+    \item \texttt{visualizer.py} Contains the visualizer for this project. It uses \texttt{matplotlib} to plot the \texttt{numpy} arrays and automatically progresses through the frames. You won't ever have to call this function directly.
+
+    \item \texttt{constants.py} This file contains the constants for the noisy simulation. We will be testing your touchscreen with the given constants, but feel free to experiment to see what changing them does!
+
+    \item \texttt{generate\_data.py} You may find it useful to generate statistics or do some calculations comparing the noisy data to the actual finger location (hint hint). To make things easier, the function \texttt{create\_simulations(size, frames)} will create a list of all frames in a random simulation for you. The \texttt{create\_simulations} function is imported for you at the bottom of \texttt{touchscreen.py}, which you can run with the command \texttt{python touchscreen.py}.
+\end{itemize}
+
+\subsection{Observations and Hints}
+\begin{itemize}
+    \item To simplify the problem for you, we have guaranteed that the actual and noisy positions are the same for the first frame of a simulation. Use this knowledge to your advantage.
+    \item In a single timestep, George’s finger will always either stay in the same place or move to one of the 8 adjacent locations (including diagonally adjacent locations).
+    \item George’s finger is more likely to continue moving in the same direction as it moved in the last timestep than it is to move in any other direction. Otherwise, his finger moves in a uniformly random direction.
+    \item If George’s finger is about to move off the edge of the touchscreen, he will pause for one timestep, and then be more likely to move in the opposite direction at the next timestep, just as if he had been moving in the opposite direction before.
+    \item Run the visualizer on a few simulations. Look for patterns in the errors that the touchscreen makes. How would you describe these errors? How would you model this in your HMM?
+    \item A state does not necessarily have to be a cell. For example, you can trade off runtime for accuracy by grouping together adjacent cells as one state. Concretely, one state could be that the finger is in one of the four cells in the top-left corner. There are conceivably other useful state representations as well.
+    \item It will be difficult for you to get a sense for how well you are doing based on your score if there is not anything to compare it to. We recommend trying a few different solutions and comparing their scores (see Section~\ref{subsec:testingpart2} for scoring details). You will benefit from doing this both because it will probably lead to a better solution and because it will be useful when writing about your other approaches (see Section 3).
+    \item You may want to take a look at question 5 in the writeup. This may give you some ideas on how to implement your \texttt{touchscreenHMM}.
+\end{itemize}
+
+\subsection{Testing Part 2}
+\label{subsec:testingpart2}
+You can run \texttt{unit\_tests.py} for your solution in part 2, as well as write your own additional tests. In addition, we provide the below testing functionality:
+
+We are providing you with the testing functions that we will be using to grade your \texttt{filter\_noisy\_data} implementation. These functions are contained in \texttt{simulation\_evaluator.py}, which has code for a class called \texttt{touchscreenEvaluator}. A \texttt{touchscreenEvaluator} has two methods:
+\begin{itemize}
+    \item \texttt{calc\_score(actual\_frame, estimated\_frame)}:
+    This function calculates the individual score for a \texttt{estimated\_frame}, which is a distribution of possible locations for the true position of a finger (returned by your \texttt{touchscreenHMM}'s \texttt{filter\_noisy\_data} function). This works by awarding more points for higher distributions near the actual position of the finger by using a normal distribution.
+    \item \texttt{evaluate\_touchscreen\_hmm(touchscreenHMM, simulation)}:
+    This function takes in an instance of your \texttt{touchscreenHMM} and outputs a map with 6 key-value pairs. The first value is an accuracy score for your \texttt{touchscreenHMM}, a weighted result of running \texttt{calc\_score()} over all the frames in a given \texttt{simulation}. The second value is an accuracy score for if you just returned the noisy frame in \texttt{filter\_noisy\_data}. The fourth value is a number that we will be using to evaluate the consistency of your solution, and the fifth value is the same metric for if you just returned the noisy frame in \texttt{filter\_noisy\_data}. The \texttt{rubric\_} scores are given as estimates of what your actual autograded score would be for that single run (we will be averaging over multiple runs).
+\end{itemize}
+
+\section{Part 3: Writeup}
+\subsection{HMM Questions}
+Now that you have implemented your HMM, and George has successfully ordered his shipment, you will write about your approach to completing part 2. In your writeup, you should answer the following questions in separately numbered sections:
+\begin{enumerate}
+\item How did you model this situation as a HMM? What did you choose as the hidden states, observations, transition models, and sensor models? Be sure to describe these clearly and completely. This may easily take more than a page.
+\item How did you select the transition and sensor models that you ended up using? How did observations from the simulator influence your choices? Account for each choice that you made.
+\item What assumptions do you make in your approach? In particular, does your HMM relax either assumption 2 or 3 (or both) in section 1.3? For each of your assumptions, indicate whether they hold in reality.
+\item What other approaches did you consider? Why did they seem promising? Why didn’t you end up using them?
+\item Smoothing and Prediction Inference Tasks
+    \begin{enumerate}[(a)]
+        \item Explain (with examples, equations, etc.) what is smoothing in the context of HMMs. How would you modify your existing filtering code to implement smoothing over the touchscreen data? What should we expect as reasonable arguments and outputs for a function called \texttt{touchscreen\_smoothing}?
+        \item Explain (with examples, equations, etc.) what is prediction in the context of HMMs. How would you modify your existing filtering code to implement making predictions over the touchscreen data? What should we expect as reasonable arguments and outputs for a function called \texttt{touchscreen\_prediction}?
+    \end{enumerate}
+\end{enumerate}
+
+\subsection{SRC Questions}
+Hidden Markov Models are used in a wide range of applications such as finance, bioinformatics, and speech recognition. As these applications see increasing use in industry, many people whose jobs revolved around the same applications may lose their jobs. Read the following article \\\url{https://time.com/5876604/machines-jobs-coronavirus/}
+on the impact of AI replacing human workers during the pandemic. Please answer the following question:
+\begin{itemize}
+     \item Imagine if there was an artificial intelligence algorithm created to make laws. Would you be comfortable replacing human law makers with that algorithm? What about the algorithms replacing truck drivers or McDonald's cashiers. Where do we draw the line for which jobs should we allow to be replaced or should we uphold that all jobs should be protected from being automated away?
+\end{itemize}
+Then pick \textbf{ONE} of the following three questions
+\begin{enumerate}
+    \item Pick one of the job fields (ex: finance) discussed in the article which have been impacted by the increased application of AI. Did the displacement of jobs in that field surprise you? Do you think it was inevitable for these jobs to be "automated away"?
+    \item The latter half of the article focuses on retraining workers as a solution to the unemployment issue, do you think this is a viable approach?
+    \item Which party do you think is responsible for accounting for the displacement of jobs from AI? The developers of the AI? The government? The employer? Or another party?
+\end{enumerate}
+
+\section{Grading}
+We will give you your score based on the rubric in \texttt{rubric.txt}. You can take a look at this file to get a sense of the point allocations.
+
+\subsection{Part 1}
+For the basic HMM, we will be testing the functionality by adding test data to the HMM using \texttt{tell()} and comparing the results of \texttt{ask()} to the actual distribution. This portion will be auto graded with a certain window of error forgiveness (0.001). The run time for \texttt{tell()} and \texttt{ask()} should be less than 5 seconds. See the corresponding \hyperref[subsec:testingpart1]{\textbf{Section 1.4: Testing Part 1}} section for more info.
+
+\subsection{Part 2}
+\label{subsec:part2grading}
+For the touchscreen problem, your score will not be an all or nothing field like past auto-graded sections, but rather a sliding scale based on the performance of the HMM. Initializing an instance of your \texttt{touchscreenHMM} should take less than 1 minute, and each call to \texttt{filter\_noisy\_data} on a 20 by 20 touchscreen should take at most 10 seconds per frame. Our tests will consist of multiple simulations (size: $20 \times 20$) of 100 frames. We will be grading your implementation on two main factors:
+\begin{itemize}
+    \item \textit{accuracy}: we look at each frame returned from your \texttt{filter\_noisy\_data} call, and score you based on how tightly your distribution captures the actual finger location over all frames.
+    \item \textit{consistency}: we reward distributions that don't deviate as often from the actual finger location. For example, a solution that simply returns the noisy frame would not receive a good consistency score because its distribution often misses the actual location completely.
+\end{itemize}
+The evaluator we provide you returns a map with six key-value pairs: \texttt{accuracy\_score}, \texttt{noisy\_score}, \texttt{missed\_frames}, \texttt{noisy\_frames}, and two rubric estimates \texttt{rubric\_1} and \texttt{rubric\_2}. The \texttt{accuracy\_score} will be a float between 0 and 100, where a higher score corresponds to better accuracy for this portion. You will be receiving some points as long as you are scoring higher than the \texttt{noisy\_score}. For the consistency score, a \textbf{lower} number of \texttt{missed\_frames} will result in a \textbf{higher} score. You should definitely obtain a lower number than \texttt{noisy\_frames}.
+
+\textbf{Note:} Because of the nature of the assignment and how our scoring system works, we expect perfect scores to be \textit{exceptionally} rare. While we as TAs can give you ideas or guide you in the right direction, it may be worth noting that even our own solutions are not optimal! We know this assignment is difficult and want to see what you can do, which is why we are giving you almost 3 weeks to complete it. Don't worry too much about how high your scores should be, and just try to get the best scores that you can. If you've spent longer than 18 hours of genuine work on part 2, move on to the writeup and write about what you've tried.
+
+\section{Virtual Environment and Requirements}
+As usual, you should be using our virtual environment to run your code:
+\begin{itemize}
+\setlength\itemsep{0em}
+\item To activate: \texttt{\$ source /course/cs1410/venv/bin/activate}
+\item Then simply run your files as: \texttt{\$ python <executable.py>}
+\item To deactivate: \texttt{\$ deactivate}
+\end{itemize}
+
+Alternatively, if you choose to work on your own machine, there are some additional packages that are needed for this project, namely \texttt{scipy}, \texttt{matplotlib}, and \texttt{numpy}. These are already installed in our virtual environment, but you will need to install them on your own machine.
+
+One quick way to install the dependencies you don't have is to use pip. If you don't have pip installed on your machine, you can find instructions here: \url{https://pip.pypa.io/en/stable/installing/}
+
+\section{Install and Handin Instructions}
+To install, accept the GitHub Classroom assignment at \href{https://classroom.github.com/a/P7cmgUDq}{this link}. This will
+create a private GitHub repository with the stencil code for you to work on the
+assignment.
+
+To handin,
+\begin{enumerate}
+  \item Make sure to push any changes you want to test to your private
+    repository. You can do this by running
+    \begin{verbatim}
+    git add .
+    git commit -m "<a commit message describing what you changed>"
+    git push
+    \end{verbatim}
+
+  \item On Gradescope, click on the assignment you are submitting for.
+
+  \item Under ``Submission Method", please select GitHub.
+
+  \item Under ``Repository", you can search for your repository by typing ``csci-1410"
+    and selecting the repository for this assignment.
+
+  \item Under ``Branch", you can select any branch that you want to be graded. So if
+    you're testing something on a branch, you can see how its functionality
+    performs here, before merging it to master. Feel free to upload your assignment
+    as many times as you like before the deadline.
+\end{enumerate}
+
+In accordance with the course \href {https://cs1410-website.vercel.app/files/Collaboration_Policy.pdf}{grading policy},
+your written homework should not have any identifiable information on it,
+including your banner ID, name, or CS login.
+
+\end{document}
