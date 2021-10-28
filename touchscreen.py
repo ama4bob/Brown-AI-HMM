@@ -24,7 +24,7 @@ class HMM:
         self.sensor_model = sensor_model
         self.transition_model = transition_model
         self.num_states = width * height
-        self.probabilities = np.ones((self.num_states)) / self.num_states #in each cell, divide each by num_states
+         #in each cell, divide each by num_states
         self.mapToState = {w*height + h: (w, h) for w in range(width) for h in range(height)}
 
     def tell(self, observation):

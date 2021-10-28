@@ -113,7 +113,7 @@ class HMM:
         return future_probabilities
 
 
-if __name__ == "__main__":        
+#if __name__ == "__main__":        
   # def sensor_model(ob s, st):
   #   P = {
   #     "A": [0.3, 0.7],
