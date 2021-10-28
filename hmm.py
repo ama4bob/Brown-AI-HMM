@@ -56,10 +56,20 @@ class HMM:
         """
         future_probabilities = np.zeros((self.num_states)) #num_state number of zeroes
 
+     #   for fs in range (0, self.num_states):
+     #     for cs in range(0, )
+
+        
+
         for future_state in range(0, self.num_states): #From 0 to num_states
           for current_state in range(0, self.num_states): #from 0 to num_states
             #In each future_state, it equals to the curren_state * the transition model value
             future_probabilities[future_state] += self.probabilities[current_state] * self.transition_model(current_state, future_state)
+            # if future_state == 1:
+            #   print(f"curr state {current_state}")
+            #   print(f"prob current")
+            #   print(f"transition {self.transition_model(current_state, future_state)}")
+
           #In each future state, times the value by the sensor model value
           future_probabilities[future_state] *= self.sensor_model(observation, future_state)
         
@@ -85,12 +95,44 @@ class HMM:
         for remaining_time in range(self.time, time):
           current_probabilities = future_probabilities
           future_probabilities = np.zeros((self.num_states))
+          # print(f"Time: {remaining_time}")
+
           
           # Same as tell
           for future_state in range(0, self.num_states):
             for current_state in range(0, self.num_states):
-              future_probabilities[future_state] += self.probabilities[current_state] * self.transition_model(current_state, future_state)
+              future_probabilities[future_state] += current_probabilities[current_state] * self.transition_model(current_state, future_state)
+              #print(f"future probs for {future_state}: {future_probabilities[future_state]}")
+              #if future_state == 1:
+              
+                # print(f"curr state: {current_state}")
+                # print(f"prob current: {self.probabilities[current_state]}")
+                # print(f"transition: {self.transition_model(current_state, future_state)}")
           future_probabilities /= np.sum(future_probabilities)
         
         return future_probabilities
-        
+
+
+if __name__ == "__main__":        
+  # def sensor_model(ob s, st):
+  #   P = {
+  #     "A": [0.3, 0.7],
+  #     "B": [0.6, 0.4],
+  #     "C": [0.9999, 0.0001]
+  #   }
+  #   return P[obs][st]
+
+  # def transition_model(old, new):
+  #   P = [
+  #     [0.6, 0.4],
+  #     [0.9, 0.1]
+  #   ]
+  #   return P[old][new]
+  
+  # hmm = HMM(sensor_model, transition_model, 2)
+  # hmm.tell("A")
+  # hmm.tell("B")
+  # hmm.tell("C")
+  # print(f"first {hmm.ask(3)}")
+  # print(f"second {hmm.ask(4)}")
+  # print(f"third {hmm.ask(5)}")

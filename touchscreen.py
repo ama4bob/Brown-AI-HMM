@@ -72,7 +72,7 @@ class touchscreenHMM:
 
     def generate_models(self):
         #simulations = tuple(map(lambda arr: tuple(map(lambda x: x[0], np.where(arr))), create_simulations(1)[0]))
-        simulations = tuple(map(lambda simulation: tuple(map(lambda arr: self.arr_to_pos(arr), simulation)), create_simulations(20, 100000)))
+        simulations = tuple(map(lambda simulation: tuple(map(lambda arr: self.arr_to_pos(arr), simulation)), create_simulations(50, 100000)))
         #print(f"simulations\n\n\n\n{simulations}")
         tr_map = {}
         sn_map = {}
