@@ -1,6 +1,7 @@
 import numpy as np
 from touchscreen_helpers.generate_data import create_simulations
 from typing import Callable, List
+from touchscreen_helpers.simulator import touchscreenSimulator
 
 # Implement part 2 here!
 
@@ -26,6 +27,8 @@ class HMM:
         self.num_states = width * height
          #in each cell, divide each by num_states
         self.mapToState = {w*height + h: (w, h) for w in range(width) for h in range(height)}
+        self.probabilities = np.array([self.transition_model((-1, -1), (w, h)) for w in range(width) for h in range(height)])
+        self.probabilities = self.probabilities / np.sum(self.probabilities)
 
     def tell(self, observation):
         future_probabilities = np.zeros((self.num_states)) #num_state number of zeroes
@@ -44,6 +47,7 @@ class HMM:
         
         #Derive alpha value by dividing by the total sum of the future probabilities s.t. the values equal to 1
         self.probabilities = future_probabilities / np.sum(future_probabilities)
+        #self.probabilities = self.probabilities / np.sum(self.probabilities)
         return self.probabilities
 
 
@@ -72,7 +76,14 @@ class touchscreenHMM:
 
     def generate_models(self):
         #simulations = tuple(map(lambda arr: tuple(map(lambda x: x[0], np.where(arr))), create_simulations(1)[0]))
-        simulations = tuple(map(lambda simulation: tuple(map(lambda arr: self.arr_to_pos(arr), simulation)), create_simulations(50, 100000)))
+        frames = 1000000
+        sim = touchscreenSimulator(width=self.width, height=self.width, frames=frames)
+        sim.run_simulation()
+        sim_data = []
+        for _ in range(frames):
+            sim_data.append(sim.get_frame(actual_position=True))
+    
+        simulations = tuple(map(lambda simulation: tuple(map(lambda arr: self.arr_to_pos(arr), simulation)), sim_data))
         #print(f"simulations\n\n\n\n{simulations}")
         tr_map = {}
         sn_map = {}
@@ -82,7 +93,7 @@ class touchscreenHMM:
             # initialize transitions
             st = sim[1]
             prev_st_tr = tr_map.setdefault(prev_st, {})
-            prev_st_tr[st] = prev_st_tr.get(st, 0) + 1  # What is this doing?
+            prev_st_tr[st] = prev_st_tr.get(st, 0) + 1  
             prev_st = st
 
             # Initialize observations/sensors
@@ -155,6 +166,7 @@ class touchscreenHMM:
         - A 2D NumPy array with the probabilities of the actual finger location.
         """
         # Write your code here!
+        print(f"sum {np.sum(self.hmm.tell(self.arr_to_pos(frame)))}")
         return self.hmm.tell(self.arr_to_pos(frame))
 
 
